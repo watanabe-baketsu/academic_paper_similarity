@@ -1,0 +1,7 @@
+transformers==4.30.2
+torchtext~=0.15.2
+datasets==2.13.1
+torch~=2.0.1
+scikit-learn~=1.2.2
+numpy==1.25.0
+xgboost~=1.7.6
