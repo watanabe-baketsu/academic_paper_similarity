@@ -1,16 +1,17 @@
 import numpy as np
 import torch
 from datasets import DatasetDict
-from sklearn.metrics import classification_report, accuracy_score
+from sklearn.metrics import classification_report
 from transformers import AutoModel, AutoTokenizer
 
 
 class SimpleClassifiers:
-    def __init__(self, dataset: DatasetDict):
+    def __init__(self, dataset: DatasetDict, categories: list):
         self.X_train = np.array(dataset["training"]["hidden_state"])
         self.y_train = np.array(dataset["training"]["label"])
         self.X_valid = np.array(dataset["validation"]["hidden_state"])
         self.y_valid = np.array(dataset["validation"]["label"])
+        self.target_names = categories
 
     def random_forest(self):
         from sklearn.ensemble import RandomForestClassifier
@@ -19,7 +20,7 @@ class SimpleClassifiers:
         clf.fit(self.X_train, self.y_train)
         y_pred = clf.predict(self.X_valid)
         print("#### Random Forest Report")
-        print(classification_report(self.y_valid, y_pred, digits=6))
+        print(classification_report(self.y_valid, y_pred, digits=6, target_names=self.target_names))
 
     def xgboost(self):
         from xgboost import XGBClassifier
@@ -28,7 +29,7 @@ class SimpleClassifiers:
         clf.fit(self.X_train, self.y_train)
         y_pred = clf.predict(self.X_valid)
         print("#### XGBoost Report")
-        print(classification_report(self.y_valid, y_pred, digits=6))
+        print(classification_report(self.y_valid, y_pred, digits=6, target_names=self.target_names))
 
     def neural_network(self):
         from sklearn.neural_network import MLPClassifier
@@ -37,7 +38,7 @@ class SimpleClassifiers:
         clf.fit(self.X_train, self.y_train)
         y_pred = clf.predict(self.X_valid)
         print("#### Neural Network Report")
-        print(classification_report(self.y_valid, y_pred, digits=6))
+        print(classification_report(self.y_valid, y_pred, digits=6, target_names=self.target_names))
 
     def evaluate_all(self):
         self.random_forest()
@@ -53,7 +54,7 @@ class TransformerBody:
 
     def tokenize(self, data: DatasetDict) -> DatasetDict:
         # Tokenize the texts
-        tokenized_inputs = self.tokenizer(data['visible_text'], padding="max_length", max_length=512, truncation=True,
+        tokenized_inputs = self.tokenizer(data['abstract'], padding="max_length", max_length=512, truncation=True,
                                           return_tensors="pt")
         return tokenized_inputs
 
