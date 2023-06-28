@@ -19,13 +19,11 @@ if __name__ == "__main__":
     dataset = read_dataset(args.dataset_path)
     training_dataset = dataset["training"].shuffle(seed=42).select(range(20000))
     validation_dataset = dataset["validation"].shuffle().select(range(2500))
-    testing_dataset = dataset["testing"].shuffle().select(range(2500))
     print(f"Training dataset count: {len(training_dataset)}")
     print(f"Validation dataset count: {len(validation_dataset)}")
     dataset = DatasetDict({
         "training": training_dataset,
-        "validation": validation_dataset,
-        "testing": testing_dataset
+        "validation": validation_dataset
     })
 
     transformer = TransformerBody(args.model_name, args.device)
