@@ -47,10 +47,11 @@ if __name__ == "__main__":
     # Extract the paper that has the top10 high similarity
     similarity = dataset["dataset"]["similarity"]
     top10_idx = torch.Tensor(similarity).argsort(descending=True)[:10].tolist()  # convert tensor to list
-    print(top10_idx)
     top10_title = [dataset["dataset"][i]["title"] for i in top10_idx]
 
     print("Top 10 similar papers:")
     for i, title in enumerate(top10_title):
+        if "\n" in title:
+            title = title.replace("\n", " ")
         print(f"{i + 1}. {title} // similarity: {similarity[top10_idx[i]]:.3f}")
 
