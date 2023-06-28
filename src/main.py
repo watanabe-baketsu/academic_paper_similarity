@@ -2,8 +2,8 @@ from argparse import ArgumentParser
 
 from datasets import DatasetDict
 
-from classifiers import SimpleClassifiers, TransformerBody
-from utils import read_dataset, categories
+from classifiers import TransformerBody, NNTrainerUtility
+from utils import read_dataset
 
 
 if __name__ == "__main__":
@@ -17,8 +17,9 @@ if __name__ == "__main__":
 
     # Load dataset
     dataset = read_dataset(args.dataset_path)
-    training_dataset = dataset["training"].shuffle(seed=42).select(range(20000))
-    validation_dataset = dataset["validation"].shuffle().select(range(2500))
+    training_dataset = dataset["training"].shuffle(seed=42)
+    validation_dataset = dataset["validation"].shuffle()
+    testing_dataset = dataset["testing"].shuffle()
     print(f"Training dataset count: {len(training_dataset)}")
     print(f"Validation dataset count: {len(validation_dataset)}")
     dataset = DatasetDict({
@@ -35,6 +36,8 @@ if __name__ == "__main__":
     # Extract hidden states
     dataset = dataset.map(transformer.extract_hidden_states, batched=True, batch_size=args.gpu_batch_size)
 
-    # Train simple classifiers and evaluate them
-    classifiers = SimpleClassifiers(dataset, categories)
-    classifiers.evaluate_all()
+    # Train neural network and evaluate it
+    trainer = NNTrainerUtility(args.device)
+    trainer.train_nn_model(dataset)
+
+

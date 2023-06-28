@@ -1,49 +1,15 @@
+import copy
+
 import numpy as np
 import torch
+from torch import nn
 from datasets import DatasetDict
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, accuracy_score
 from transformers import AutoModel, AutoTokenizer
+from torch.utils.data import DataLoader, TensorDataset
+from torch.optim.lr_scheduler import CosineAnnealingLR
 
-
-class SimpleClassifiers:
-    def __init__(self, dataset: DatasetDict, categories: list):
-        self.X_train = np.array(dataset["training"]["hidden_state"])
-        self.y_train = np.array(dataset["training"]["label"])
-        self.X_valid = np.array(dataset["validation"]["hidden_state"])
-        self.y_valid = np.array(dataset["validation"]["label"])
-        self.target_names = categories
-
-    def random_forest(self):
-        from sklearn.ensemble import RandomForestClassifier
-
-        clf = RandomForestClassifier(random_state=0)
-        clf.fit(self.X_train, self.y_train)
-        y_pred = clf.predict(self.X_valid)
-        print("#### Random Forest Report")
-        print(classification_report(self.y_valid, y_pred, digits=6, target_names=self.target_names))
-
-    def xgboost(self):
-        from xgboost import XGBClassifier
-
-        clf = XGBClassifier(random_state=0)
-        clf.fit(self.X_train, self.y_train)
-        y_pred = clf.predict(self.X_valid)
-        print("#### XGBoost Report")
-        print(classification_report(self.y_valid, y_pred, digits=6, target_names=self.target_names))
-
-    def neural_network(self):
-        from sklearn.neural_network import MLPClassifier
-
-        clf = MLPClassifier(random_state=0)
-        clf.fit(self.X_train, self.y_train)
-        y_pred = clf.predict(self.X_valid)
-        print("#### Neural Network Report")
-        print(classification_report(self.y_valid, y_pred, digits=6, target_names=self.target_names))
-
-    def evaluate_all(self):
-        self.random_forest()
-        self.xgboost()
-        self.neural_network()
+from utils import categories
 
 
 class TransformerBody:
@@ -63,3 +29,129 @@ class TransformerBody:
         with torch.no_grad():
             last_hidden_state = self.transformer_model(**inputs).last_hidden_state
         return {"hidden_state": last_hidden_state[:, 0].cpu().numpy()}
+
+
+class NeuralNetwork(nn.Module):
+    def __init__(self, input_size, output_size):
+        super(NeuralNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_size, 512)
+        self.fc2 = nn.Linear(512, 256)
+        self.fc3 = nn.Linear(256, 128)
+        self.fc4 = nn.Linear(128, output_size)
+
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+
+        x = self.fc2(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+
+        x = self.fc3(x)
+        x = torch.relu(x)
+        x = self.dropout(x)
+
+        x = self.fc4(x)
+
+        return x
+
+
+class NNTrainerUtility:
+    def __init__(self, device):
+        self.device = device
+
+    def train_nn_model(self, dataset: DatasetDict) -> NeuralNetwork:
+        train_hidden_states = dataset["training"]["hidden_state"]
+        train_label = torch.tensor(dataset["training"]["label"]).float().view(-1, 1)
+        valid_hidden_states = dataset["validation"]["hidden_state"]
+        valid_label = torch.tensor(dataset["validation"]["label"]).float().view(-1, 1)
+        test_hidden_states = dataset["testing"]["hidden_state"]
+        test_label = torch.tensor(dataset["testing"]["label"]).float().view(-1, 1)
+
+        train_dataset = TensorDataset(train_hidden_states, train_label)
+        valid_dataset = TensorDataset(valid_hidden_states, valid_label)
+        test_dataset = TensorDataset(test_hidden_states, test_label)
+
+        batch_size = 32
+        train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+        valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
+        test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=True)
+
+        input_size = len(train_hidden_states[0])
+        output_size = len(categories)
+        criterion = torch.nn.CrossEntropyLoss()
+        nn_model = NeuralNetwork(input_size, output_size).to(self.device)
+        optimizer = torch.optim.Adam(nn_model.parameters())
+        schedular = CosineAnnealingLR(optimizer, T_max=100)
+
+        best_model = copy.deepcopy(nn_model)
+        best_accuracy = 0.0
+        epochs = 100
+        for epoch in range(epochs):
+            # トレーニングフェーズ
+            nn_model.train()
+            running_loss = 0.0
+            for i, data in enumerate(train_loader, 0):
+                inputs, labels = data[0].to(self.device), data[1].to(self.device)
+                optimizer.zero_grad()
+
+                outputs = nn_model(inputs)
+                loss = criterion(outputs, labels)
+                loss.backward()
+                optimizer.step()  # パラメータの更新
+                running_loss += loss.item()
+            if (epoch + 1) % 10 == 0:
+                print(f'Epoch: {epoch + 1}, Training Loss: {running_loss / len(train_loader)}')
+            tmp_accuracy = self.evaluate_nn_model(nn_model, valid_loader, criterion, mode="epoch")
+            if tmp_accuracy > best_accuracy:
+                best_accuracy = tmp_accuracy
+                print(f"Best accuracy: {best_accuracy}")
+                best_model = copy.deepcopy(nn_model)
+            schedular.step()
+
+        print('Finished Training')
+        self.evaluate_nn_model(best_model, test_loader, criterion, mode="last")
+        return best_model
+
+    def evaluate_nn_model(self, nn_model: NeuralNetwork, loader: DataLoader, criterion, mode: str) -> float:
+        nn_model.eval()
+        all_labels = []
+        all_predictions = []
+        tmp_loss = 0.0
+        with torch.no_grad():
+            for i, data in enumerate(loader, 0):
+                inputs, labels = data[0].to(self.device), data[1].to(self.device)
+                outputs = nn_model(inputs)
+                loss = criterion(outputs, labels)
+                tmp_loss += loss.item()
+
+                # ラベルと予測結果を保存
+                all_labels.extend(labels.cpu().numpy())
+                all_predictions.extend((outputs > 0.5).cpu().numpy())
+
+        epoch_accuracy = accuracy_score(all_labels, all_predictions)
+        if mode == "epoch":
+            return epoch_accuracy
+        elif mode == "last":
+            print(f'Testing Loss: {tmp_loss / len(loader)}')
+            print("#### Classification Report ####")
+            print(classification_report(all_labels, all_predictions, digits=6))
+
+    def extract_outputs(self, nn_model: NeuralNetwork, dataset: DatasetDict, mode: str) -> list:
+        nn_model.eval()
+        all_outputs = []
+
+        hidden_states = dataset[mode]["hidden_state"]
+        dataset = TensorDataset(hidden_states)
+        batch_size = 32
+        loader = DataLoader(dataset, batch_size=batch_size, shuffle=False)
+        with torch.no_grad():
+            for i, data in enumerate(loader, 0):
+                inputs = data[0].to(self.device)
+                outputs = nn_model(inputs)
+                _, predicted_classes = torch.max(outputs.cpu().numpy(), 1)
+                all_outputs.extend(predicted_classes)
+        return all_outputs
