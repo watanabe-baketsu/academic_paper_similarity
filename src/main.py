@@ -24,7 +24,8 @@ if __name__ == "__main__":
     print(f"Validation dataset count: {len(validation_dataset)}")
     dataset = DatasetDict({
         "training": training_dataset,
-        "validation": validation_dataset
+        "validation": validation_dataset,
+        "testing": testing_dataset
     })
 
     transformer = TransformerBody(args.model_name, args.device)
