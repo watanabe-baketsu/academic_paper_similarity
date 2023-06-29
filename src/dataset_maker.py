@@ -17,11 +17,16 @@ if __name__ == "__main__":
 
     new_data = []
     for record in data:
+        if " " in record['categories']:
+            record_categories = record['categories'].split(" ")
+            if args.category not in record_categories:
+                continue
         if record['categories'] != args.category:
             continue
         new_record = {
             'title': record['title'],
-            'abstract': record['abstract']
+            'abstract': record['abstract'],
+            'categories': record['categories'],
         }
         new_data.append(new_record)
     print(f"Number of records: {len(new_data)}")
@@ -38,5 +43,5 @@ if __name__ == "__main__":
         "total_size": total_size
     }
 
-    with open(f"arxiv_{args.category.replace('.', '_')}_dataset.json", 'w') as f:
+    with open(f"../datasets/arxiv_{args.category.replace('.', '_')}_dataset.json", 'w') as f:
         json.dump(new_json, f, indent=4)

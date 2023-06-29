@@ -8,7 +8,7 @@ from utils import read_dataset
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-    parser.add_argument("--model_name", type=str, default="ArtifactAI/arxiv-distilbert-base-v3-GenQ")
+    parser.add_argument("--model_name", type=str, default="sentence-transformers/all-MiniLM-L6-v2")
     parser.add_argument("--dataset_path", type=str, default="../datasets/arxiv_cs_CR_dataset.json")
     parser.add_argument("--device", type=str, default="cuda", choices=["cuda", "cpu", "mps"])
     parser.add_argument("--gpu_batch_size", type=int, default=30)

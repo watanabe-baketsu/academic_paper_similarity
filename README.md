@@ -10,13 +10,17 @@ Preprocessing is done on the dataset to remove the unnecessary columns and to re
   "dataset": [
     {
       "title": "Statistical Analysis Based Feature Selection Enhanced RF-PUF with >99.8%\n  Accuracy on Unmodified Commodity Transmitters for IoT Physical Security",
-      "abstract": "<abstract content>"
+      "abstract": "<abstract content>",
+      "categories": "cs.CR cs.IT cs.LG cs.MM cs.NI cs.SE"
     },
     {
       "title": "KYChain: User-Controlled KYC Data Sharing and Certification",
-      "abstract": "<abstruct contents>"
+      "abstract": "<abstruct contents>",
+        "categories": "cs.CR"
     }
-  ]
+  ],
+  "total": 10000,
+  "category": "cs.CR"
 }
 ```
 
