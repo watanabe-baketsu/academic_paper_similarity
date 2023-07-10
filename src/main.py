@@ -1,9 +1,8 @@
-import json
-
 import torch
 import openai
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.encoders import jsonable_encoder
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 
@@ -77,15 +76,23 @@ async def index(request: Request):
 async def search(request: Request, paper: Paper):
     similar_papers = calc_sim(paper.category, paper.abstract)
     if similar_papers is None:
-        return templates.TemplateResponse("error.html", {"request": request})
+        return JSONResponse(jsonable_encoder({"error": f"similar papers not found for category=\"{paper.category}\" and abstract=\"{paper.abstract}\"!"}))
 
     titles = similar_papers["top5_title"]
     abstracts = similar_papers["top5_abstract"]
 
-    gpt_results = {}
+    gpt_results = [
+        # ひとまずテストデータとして入れてます。
+        {
+            "論文のタイトル": "Detecting Phishing Sites Using ChatGPT",
+            "概要": "大規模言語モデルChatGPTを使用してフィッシングサイトを検出する新しい方法を提案。ウェブクローラーを用いて情報を収集し、機械学習モデルを微調整することなくフィッシングサイトを検出する。GPT-4を使用した実験結果は精度98.3％、再現率98.4％を示す。",
+            "長所": "ChatGPTの高い検出性能と、微調整なしでフィッシングサイトを検出できる点。",
+            "短所": "GPT-4以前のモデルと比較した場合、誤検出（偽陰性）が増加する可能性がある。",
+        }, 
+    ]
 
     data = {
         "data": gpt_results
     }
 
-    return json.dumps(data)
+    return JSONResponse(jsonable_encoder(data))
