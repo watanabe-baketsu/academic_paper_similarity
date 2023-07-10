@@ -1,18 +1,43 @@
+import json
+import os
+from os.path import join, dirname
+from pprint import pprint
+
 import torch
 import openai
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from dotenv import load_dotenv
 from pydantic import BaseModel
-
 
 from models import TransformerBody
 from utils import read_dataset
+from prompt import prompt_system
 
 
 app = FastAPI()
+origins = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+]
+
+# ミドルウェアを追加
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 templates = Jinja2Templates(directory="../templates")
+load_dotenv()
+dotenv_path = join(dirname(__file__), '.env')
+load_dotenv(dotenv_path)
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 class Paper(BaseModel):
     category: str
@@ -26,7 +51,7 @@ def calc_sim(category: str, title: str):
     except FileNotFoundError:
         return None
     # Initialize the model
-    transformer = TransformerBody(title, model_name, "mps")
+    transformer = TransformerBody(title, model_name, os.environ.get("DEVICE"))
     # Extract hidden states
     dataset = dataset.map(transformer.extract_similarity, batched=True, batch_size=30)
 
@@ -42,54 +67,46 @@ def calc_sim(category: str, title: str):
             title = title.replace("\n", " ")
         print(f"{i + 1}. {title} // similarity: {similarity[top5_idx[i]]:.3f}")
     return {
-        "top5_abstract": top5_abstract,
-        "top5_title": top5_title
+        "top5_abstract": [abstract for abstract in top5_abstract],
+        "top5_title": [title for title in top5_title]
     }
 
 
-def get_json(text):
-    prompt_system = "Please operate as a Japanese speech modification program. " \
-                    "Determine whether the user's speech contains discriminatory content. " \
-                    "If the speech contains discriminatory content, output '1' at the beginning, " \
-                    "and if it does not contain discriminatory content, output '0'. If you output '1', " \
-                    "please display the modified sentence in a polite form as '1: Modified sentence'. " \
-                    "If you output '0', a modified sentence is not necessary." \
-                    "Output the 'Modified sentence' part in Japanese."
-    prompt_user = text
+def get_json(title: list, abstract: list):
+    user_inputs = ""
+    for i, (t, a) in enumerate(zip(title, abstract)):
+        user_inputs += f"{i}.\ntitle : {t}\nabstract : {a}\n\n"
+    prompt_user = user_inputs
     response = openai.ChatCompletion.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": prompt_system},
             {"role": "user", "content": prompt_user}
-        ]
+        ],
+        temperature=1.0,
+        max_tokens=2048,
     )
+    data_str = response.choices[0].message.content.strip()
 
-    return response.choices[0].message.content.strip()
+    return json.loads(data_str)
 
 
-@app.get("/", response_class=HTMLResponse)
+@app.get('/', response_class=HTMLResponse)
 async def index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
-@app.post("/search")
-async def search(request: Request, paper: Paper):
+@app.post('/search')
+async def search(paper: Paper):
     similar_papers = calc_sim(paper.category, paper.abstract)
     if similar_papers is None:
-        return JSONResponse(jsonable_encoder({"error": f"similar papers not found for category=\"{paper.category}\" and abstract=\"{paper.abstract}\"!"}))
+       return JSONResponse(jsonable_encoder({"error": f"similar papers not found for category=\"{paper.category}\""}))
 
     titles = similar_papers["top5_title"]
     abstracts = similar_papers["top5_abstract"]
 
-    gpt_results = [
-        # ひとまずテストデータとして入れてます。
-        {
-            "論文のタイトル": "Detecting Phishing Sites Using ChatGPT",
-            "概要": "大規模言語モデルChatGPTを使用してフィッシングサイトを検出する新しい方法を提案。ウェブクローラーを用いて情報を収集し、機械学習モデルを微調整することなくフィッシングサイトを検出する。GPT-4を使用した実験結果は精度98.3％、再現率98.4％を示す。",
-            "長所": "ChatGPTの高い検出性能と、微調整なしでフィッシングサイトを検出できる点。",
-            "短所": "GPT-4以前のモデルと比較した場合、誤検出（偽陰性）が増加する可能性がある。",
-        }, 
-    ]
+    gpt_results = get_json(titles, abstracts)
+    pprint(gpt_results)
 
     data = {
         "data": gpt_results

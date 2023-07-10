@@ -22,6 +22,7 @@
         }
         .search-input {
             width: 100%;
+            height: 300px;
             padding: 10px;
             font-size: 16px;
         }
@@ -43,8 +44,8 @@
 
     <div class="search-container t-center">
         <!--<textarea class="search-input" placeholder="Search..." ></textarea>-->
-        <input type="text" class="search-input" id="search-input" placeholder="Search...">
-        <div id="category-container"></div>
+        <textarea class="search-input" id="search-input" placeholder="Please enter the paper abstract."></textarea>
+        <div id="category-container">論文カテゴリ　：　</div>
         <button class="search-button" id="search-button">Search</button>
     </div>
 
@@ -75,7 +76,7 @@
             };
 
             const res = await new Promise((resolve,reject)=>{
-                const endpoint = "http://localhost:8000/search";
+                const endpoint = "http://127.0.0.1:8000/search";
                 let xhr = new XMLHttpRequest(); 
                 xhr.open("POST", endpoint); 
                 xhr.setRequestHeader("Content-Type", "application/json"); 
@@ -100,49 +101,6 @@
                 else throw new Error(results["error"]);
             }
             return results["data"];
-        }
-        // mock of get_results
-        const get_results_mock = (category=category_default, abstract=abstract_default) => {
-            return  [
-                {
-                    "論文のタイトル": "Detecting Phishing Sites Using ChatGPT",
-                    "概要": "大規模言語モデルChatGPTを使用してフィッシングサイトを検出する新しい方法を提案。ウェブクローラーを用いて情報を収集し、機械学習モデルを微調整することなくフィッシングサイトを検出する。GPT-4を使用した実験結果は精度98.3％、再現率98.4％を示す。",
-                    "長所": "ChatGPTの高い検出性能と、微調整なしでフィッシングサイトを検出できる点。",
-                    "短所": "GPT-4以前のモデルと比較した場合、誤検出（偽陰性）が増加する可能性がある。",
-                }, 
-                {
-                    "論文のタイトル": "Know Your Phish: Novel Techniques for Detecting Phishing Sites and their Targets",
-                    "概要": "ウェブページの特性を利用した新しいフィッシング検出システムを提案。ターゲットの識別コンポーネントを開発し、偽陽性を最小化する。",
-                    "長所": "クライアントサイドで実装可能で、言語に依存しない。速度が速く、優れた分類性能を持つ。",
-                    "短所": "大量の学習データが必要で、新たなターゲットに対するフィッシング攻撃の検出には不適当かもしれない。",
-                },
-                {
-                    "論文のタイトル": "URLTran: Improving Phishing URL Detection Using Transformers",
-                    "概要": "トランスフォーマーモデルを使用してフィッシングURL検出タスクのパフォーマンスを向上させるURLTranを提案。対抗策としての悪意のある攻撃の改善にも取り組んでいる。",
-                    "長所": "従来の深層学習ベースの方法と比較して、非常に低い偽陽性率(FPR)でフィッシングURL検出のパフォーマンスを大幅に向上させる。",
-                    "短所": "一部の固定攻撃に対しては、偽陽性率が上昇する可能性がある。",
-                },
-                {
-                    "論文のタイトル": "Look Before You Leap: Detecting Phishing Web Pages by Exploiting Raw URL And HTML Characteristics",
-                    "概要": "WebPhishというフィッシング攻撃の検出を目指した深層学習技術を提案。URLとHTMLの生の特性を利用して特徴を抽出し、それらをCNNモデルの入力として利用。",
-                    "長所": "実世界のデータセットでの実験結果は98％の精度を達成。完全に言語に依存しないクライアントサイドの戦略であり、ウェブページのテキスト言語に関係なく軽量なフィッシング検出が可能。",
-                    "短所": "新しいデータへの学習の外挿が難しい。従来の方法と比較して特徴選択の自動化が必要。",
-                },
-                {
-                    "論文のタイトル": "Detecting Phishing sites Without Visiting them",
-                    "概要": "エンドユーザーがサイトを訪れることなくサイトの真正性を検出できる方法を提案。訓練とモデル構築のために6つの異なる分類器を使用。ブラウザ拡張機能として開発され、リンクの上にカーソルを置くとポップアップが表示され、ウェブサイトの性質を表示。",
-                    "長所": "訪問せずにフィッシングサイトを検出できる。複数の機械学習アルゴリズムを用いて分類性能を向上させる。",
-                    "短所": "システムの設定により、フィッシングサイトの検出が遅延する可能性がある。また、95％の最高精度は他の手法と比較して若干低い。",
-                },
-                /*
-                {
-                    "論文のタイトル": "",
-                    "概要": "",
-                    "長所": "",
-                    "短所": "",
-                }
-                */
-            ]
         }
 
 

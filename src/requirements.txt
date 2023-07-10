@@ -5,4 +5,5 @@ torchtext~=0.15.2
 datasets~=2.13.1
 torch~=2.0.1
 openai~=0.27.8
+python-dotenv
 uvicorn
