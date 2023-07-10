@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Demo</title>
+    <style>
+        header {
+            background-color: #f2f2f2;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        table {
+            width: 100%;
+        }
+        .t-center {
+            text-align: center;
+        }
+        .search-container {
+            margin: 20px auto;
+            width: 600px;
+        }
+        .search-input {
+            width: 100%;
+            height: 300px;
+            padding: 10px;
+            font-size: 16px;
+        }
+        .search-button {
+            margin-top: 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: #fff;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1 class="t-center">Welcome to Our Demo</h1>
+    </header>
+
+    <div class="search-container t-center">
+        <!--<textarea class="search-input" placeholder="Search..." ></textarea>-->
+        <textarea class="search-input" id="search-input" placeholder="Please enter the paper abstract."></textarea>
+        <div id="category-container">論文カテゴリ　：　</div>
+        <button class="search-button" id="search-button">Search</button>
+    </div>
+
+    <div>
+        <h2>類似した論文一覧: </h2>
+        <div id="table-container"></div>
+    </div>
+
+    
+    <script>
+        /* Dataset section */
+        const categories = [
+            "cs.CR",
+            "cs.SD",
+            "cs.RO",
+        ]
+        const abstracts = [
+            "The rise of large language models (LLMs) has had a significant impact on various domains, including natural language processing and artificial intelligence. While LLMs such as ChatGPT have been extensively researched for tasks such as code generation and text synthesis, their application in detecting malicious web content, particularly phishing sites, has been largely unexplored. To combat the rising tide of automated cyber attacks facilitated by LLMs, it is imperative to automate the detection of malicious web content, which requires approaches that leverage the power of LLMs to analyze and classify phishing sites. In this paper, we propose a novel method that utilizes ChatGPT to detect phishing sites. Our approach involves leveraging a web crawler to gather information from websites and generate prompts based on this collected data. This approach enables us to detect various phishing sites without the need for fine-tuning machine learning models and identify social engineering techniques from the context of entire websites and URLs. To evaluate the performance of our proposed method, we conducted experiments using a dataset. The experimental results using GPT-4 demonstrated promising performance, with a precision of 98.3% and a recall of 98.4%. Comparative analysis between GPT-3.5 and GPT-4 revealed an enhancement in the latter's capability to reduce false negatives. These findings not only highlight the potential of LLMs in efficiently identifying phishing sites but also have significant implications for enhancing cybersecurity measures and protecting users from the dangers of online fraudulent activities.",
+        ]
+
+        const abstract_default = abstracts[0];
+        const category_default = categories[0];
+        //queryに対して論文情報をまとめた結果を返す. 
+        const get_results = async (category=category_default, abstract=abstract_default) => {
+            let data = {
+                "category": category,
+                "abstract": abstract,
+            };
+
+            const res = await new Promise((resolve,reject)=>{
+                const endpoint = "http://127.0.0.1:8000/search";
+                let xhr = new XMLHttpRequest(); 
+                xhr.open("POST", endpoint); 
+                xhr.setRequestHeader("Content-Type", "application/json"); 
+                xhr.onload = (e) => {
+                    console.debug(xhr.status);
+                    console.debug("success!");
+                    resolve(xhr.response);
+                };
+                xhr.onerror = (e) => { 
+                    console.error(xhr.status); 
+                    console.error("error!"); 
+                    reject(e);
+                }; 
+                console.debug("data sent: ", JSON.stringify(data));
+                xhr.send(JSON.stringify(data));
+            });
+            const results = JSON.parse(res); 
+            console.debug("result: ",results)
+
+            if (results["data"]===undefined) {
+                if (results["error"]===undefined) throw new Error("invalid response!");
+                else throw new Error(results["error"]);
+            }
+            return results["data"];
+        }
+
+
+        const generateTable = async (category=category_default, abstract=abstract_default) => {
+            try{
+                // datasets
+                let headers = ["論文のタイトル","概要","長所","短所"];
+                let values = await get_results(category, abstract);
+                //console.debug(values);
+
+
+                let userInput = document.getElementById('search-input').value;
+
+                // table
+                let table = document.createElement('table'); 
+                table.border = 1;
+                table.style.borderCollapse = "collapse";
+
+                //thead
+                let thead = document.createElement('thead');
+                let headerRow = document.createElement('tr');
+                for (let col_i=0; col_i<headers.length; col_i++) {
+                    let headerCell = document.createElement('th');
+                    let header = headers[col_i];
+                    headerCell.textContent = header;
+                    headerRow.appendChild(headerCell);
+                }
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+                    
+                //tbody 
+                let tbody = document.createElement('tbody');
+                for (let row_i = 0; row_i < values.length; row_i++) {
+                    let value = values[row_i];
+                    let row = document.createElement('tr');
+                    for (let col_i=0; col_i<headers.length; col_i++) {
+                        let cell = document.createElement('td');
+                        let header = headers[col_i];
+                        cell.textContent = value[header];
+                        row.appendChild(cell);
+                    }
+                    tbody.appendChild(row);
+                }
+                table.appendChild(tbody);
+
+                return table;
+            }catch(e){
+                console.error(e);
+                let div = document.createElement("div");
+                div.innerHTML = `
+                    <font color="red">
+                        <p> Error happened! ${e} </p>
+                    </font>
+                `;
+                return div;
+            }
+        }
+
+
+        const generateOptions = (id="category-select") => {
+            let select = document.createElement("select");
+            select.id = id;
+            for (let category of categories) {
+                let option = document.createElement("option");
+                option.value = category;
+                option.innerHTML = category;
+                select.appendChild(option);
+                if(category==categories[0]) option.selected = true;
+            }
+            return select;
+        }
+    </script>
+    <script>
+        const search_input_id = "search-input";
+        const category_input_id = "category-input"
+        const table_container_id = "table-container";
+        const category_container_id = "category-container";
+
+        const do_search = async (category=category_default, abstract=abstract_default) => {
+            //add to container
+            let table = await generateTable(category, abstract);
+            let tableContainer = document.getElementById(table_container_id);
+            tableContainer.innerHTML="";
+            tableContainer.appendChild(table);
+        }
+        //doSearch();
+
+        //options creation
+        document.getElementById(category_container_id).appendChild(
+            generateOptions(category_input_id)
+        );
+
+        //search event setup
+        document.getElementById("search-button").addEventListener("click", async (ev)=>{
+            let category = (document.getElementById(category_input_id)).value;
+            let abstract = (document.getElementById(search_input_id)).value;
+            await do_search(category, abstract);
+        })
+    </script>
+</body>
+</html>

@@ -1,5 +1,9 @@
+fastapi~=0.100.0
 transformers~=4.30.2
 sentence-transformers~=2.2.2
 torchtext~=0.15.2
 datasets~=2.13.1
 torch~=2.0.1
+openai~=0.27.8
+python-dotenv
+uvicorn
