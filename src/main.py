@@ -13,15 +13,18 @@ from fastapi.templating import Jinja2Templates
 from dotenv import load_dotenv
 from pydantic import BaseModel
 
-from models import TransformerBody
-from utils import read_dataset
+from models import execute_encode, EmbeddingSimilarity
 from prompt import prompt_system
 
 
+load_dotenv()
+dotenv_path = join(dirname(__file__), '.env')
+load_dotenv(dotenv_path)
+openai.api_key = os.environ.get("OPENAI_API_KEY")
+
 app = FastAPI()
 origins = [
-    "http://localhost:8000",
-    "http://127.0.0.1:8000",
+    os.environ.get("ENDPOINT"),
 ]
 
 # ミドルウェアを追加
@@ -34,27 +37,20 @@ app.add_middleware(
 )
 
 templates = Jinja2Templates(directory="../templates")
-load_dotenv()
-dotenv_path = join(dirname(__file__), '.env')
-load_dotenv(dotenv_path)
-openai.api_key = os.environ.get("OPENAI_API_KEY")
+
+# initialize the dataset
+dataset_dict = execute_encode()
+
 
 class Paper(BaseModel):
     category: str
     abstract: str
 
 
-def calc_sim(category: str, title: str):
-    model_name = "sentence-transformers/all-MiniLM-L6-v2"
-    try:
-        dataset = read_dataset(f"../datasets/arxiv_{category.replace('.', '_')}_dataset.json")
-    except FileNotFoundError:
-        return None
-    # Initialize the model
-    transformer = TransformerBody(title, model_name, os.environ.get("DEVICE"))
-    # Extract hidden states
-    dataset = dataset.map(transformer.extract_similarity, batched=True, batch_size=30)
-
+def calc_sim(category: str, abstract: str):
+    dataset = dataset_dict[category]
+    emb_sim = EmbeddingSimilarity(abstract)
+    dataset = dataset.map(emb_sim.extract_similarity, batched=True, batch_size=30)
     # Extract the paper that has the top5 high similarity
     similarity = dataset["dataset"]["similarity"]
     top5_idx = torch.Tensor(similarity).argsort(descending=True)[:5].tolist()  # convert tensor to list
@@ -100,7 +96,7 @@ async def index(request: Request):
 async def search(paper: Paper):
     similar_papers = calc_sim(paper.category, paper.abstract)
     if similar_papers is None:
-       return JSONResponse(jsonable_encoder({"error": f"similar papers not found for category=\"{paper.category}\""}))
+        return JSONResponse(jsonable_encoder({"error": f"similar papers not found for category=\"{paper.category}\""}))
 
     titles = similar_papers["top5_title"]
     abstracts = similar_papers["top5_abstract"]
