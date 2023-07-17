@@ -35,6 +35,103 @@
             border: none;
             cursor: pointer;
         }
+        .search-button:disabled{
+            background-color: darkgray;
+        }
+
+        /*css loading view*/
+        #loader-container{
+            width: 100%;
+            text-align: center;
+        }
+        .loader { 
+            display: inline-block 
+        }
+        @-webkit-keyframes line-spin-fade-loader {
+            50% { opacity: 0.3; }
+            100% { opacity: 1; } 
+        }
+        @keyframes line-spin-fade-loader {
+            50% { opacity: 0.3; }
+            100% { opacity: 1; } 
+        }    
+        .line-spin-fade-loader {
+            position: relative;
+            top: -10px;
+            left: -4px;
+        }
+        .line-spin-fade-loader > div:nth-child(1) {
+            top: 20px;
+            left: 0;
+            -webkit-animation: line-spin-fade-loader 1.2s -0.84s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s -0.84s infinite ease-in-out; 
+        }
+        .line-spin-fade-loader > div:nth-child(2) {
+            top: 13.63636px;
+            left: 13.63636px;
+            -webkit-transform: rotate(-45deg);
+                    transform: rotate(-45deg);
+            -webkit-animation: line-spin-fade-loader 1.2s -0.72s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s -0.72s infinite ease-in-out; 
+        }
+        .line-spin-fade-loader > div:nth-child(3) {
+            top: 0;
+            left: 20px;
+            -webkit-transform: rotate(90deg);
+                    transform: rotate(90deg);
+            -webkit-animation: line-spin-fade-loader 1.2s -0.6s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s -0.6s infinite ease-in-out;
+        }
+        .line-spin-fade-loader > div:nth-child(4) {
+            top: -13.63636px;
+            left: 13.63636px;
+            -webkit-transform: rotate(45deg);
+                    transform: rotate(45deg);
+            -webkit-animation: line-spin-fade-loader 1.2s -0.48s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s -0.48s infinite ease-in-out; 
+        }
+        .line-spin-fade-loader > div:nth-child(5) {
+            top: -20px;
+            left: 0;
+            -webkit-animation: line-spin-fade-loader 1.2s -0.36s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s -0.36s infinite ease-in-out;
+        }
+        .line-spin-fade-loader > div:nth-child(6) {
+            top: -13.63636px;
+            left: -13.63636px;
+            -webkit-transform: rotate(-45deg);
+                    transform: rotate(-45deg);
+            -webkit-animation: line-spin-fade-loader 1.2s -0.24s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s -0.24s infinite ease-in-out;
+        }
+        .line-spin-fade-loader > div:nth-child(7) {
+            top: 0;
+            left: -20px;
+            -webkit-transform: rotate(90deg);
+                    transform: rotate(90deg);
+            -webkit-animation: line-spin-fade-loader 1.2s -0.12s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s -0.12s infinite ease-in-out;
+        }
+        .line-spin-fade-loader > div:nth-child(8) {
+            top: 13.63636px;
+            left: -13.63636px;
+            -webkit-transform: rotate(45deg);
+                    transform: rotate(45deg);
+            -webkit-animation: line-spin-fade-loader 1.2s 0s infinite ease-in-out;
+                    animation: line-spin-fade-loader 1.2s 0s infinite ease-in-out;
+        }
+        .line-spin-fade-loader > div {
+            background-color: YellowGreen;
+            width: 4px;
+            height: 35px;
+            border-radius: 2px;
+            margin: 2px;
+            -webkit-animation-fill-mode: both;
+                    animation-fill-mode: both;
+            position: absolute;
+            width: 5px;
+            height: 15px;
+        }
     </style>
 </head>
 <body>
@@ -178,13 +275,45 @@
         const category_input_id = "category-input"
         const table_container_id = "table-container";
         const category_container_id = "category-container";
+        const search_button_id = "search-button";
 
-        const do_search = async (category=category_default, abstract=abstract_default) => {
-            //add to container
-            let table = await generateTable(category, abstract);
+        const sleep = (sec) => { return new Promise(resolve => setTimeout(resolve, sec*1000)) }
+
+        //tableを置き換える
+        const replaceTable = (new_table=null) => {
             let tableContainer = document.getElementById(table_container_id);
             tableContainer.innerHTML="";
-            tableContainer.appendChild(table);
+            if (new_table===null || new_table===undefined) return
+            tableContainer.appendChild(new_table);
+        }
+
+        const createLoadingView = () => {
+            let div = document.createElement("div");
+            div.id = "loader-container";
+            div.innerHTML=`<div class="loader"><div class="line-spin-fade-loader"><div></div><div></div><div></div><div></div><div></div><div></div><div></div><div></div></div></div>`;
+            return div;
+        }
+
+        const do_search = async (category=category_default, abstract=abstract_default) => {
+            //disable search button
+            let search_button = document.getElementById(search_button_id);
+            search_button.disabled=true;
+            search_button.textContent="Loading...";
+
+            //clear table 
+            replaceTable(createLoadingView());
+
+            // for debug: 
+            // await sleep(3);
+
+            //add to container
+            let table = await generateTable(category, abstract);
+            console.debug(table);
+            replaceTable(new_table=table);
+
+            //able search button
+            search_button.disabled=false;
+            search_button.textContent="Search";
         }
         //doSearch();
 
@@ -194,7 +323,7 @@
         );
 
         //search event setup
-        document.getElementById("search-button").addEventListener("click", async (ev)=>{
+        document.getElementById(search_button_id).addEventListener("click", async (ev)=>{
             let category = (document.getElementById(category_input_id)).value;
             let abstract = (document.getElementById(search_input_id)).value;
             await do_search(category, abstract);
