@@ -24,3 +24,8 @@ Preprocessing is done on the dataset to remove the unnecessary columns and to re
 }
 ```
 
+## Demo
+```bash
+cd src
+uvicorn main:app --reload
+```
